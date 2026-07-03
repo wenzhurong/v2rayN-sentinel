@@ -26,4 +26,20 @@ final class SettingsTests: XCTestCase {
         let store = SettingsStore(defaults: defaults, key: "settings")
         XCTAssertEqual(store.load(), Settings.default)
     }
+
+    // 加固 #8:非有限 Double(NaN/Infinity)会让 JSONEncoder 抛错,
+    // 被 try? 吞掉后整次保存丢失(连带无关字段)。加固后应清洗为默认值并成功保存。
+    func testNonFiniteDoublesAreSanitizedOnSave() {
+        let defaults = UserDefaults(suiteName: "SentinelTest-\(UUID().uuidString)")!
+        let store = SettingsStore(defaults: defaults, key: "settings")
+        var s = Settings.default
+        s.soundName = "Glass"
+        s.ordinaryToastSeconds = .nan
+        s.dedupeCooldownSeconds = .infinity
+        store.save(s)
+        let loaded = store.load()
+        XCTAssertEqual(loaded.soundName, "Glass")   // 保存未被整体丢弃
+        XCTAssertEqual(loaded.ordinaryToastSeconds, Settings.default.ordinaryToastSeconds)
+        XCTAssertEqual(loaded.dedupeCooldownSeconds, Settings.default.dedupeCooldownSeconds)
+    }
 }
