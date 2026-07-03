@@ -2140,3 +2140,17 @@ git commit -m "build: add app bundling script, Info.plist, and log feeder for E2
 - **#11 LogWatcher**:`FileHandle` 打开失败时 `offset = size` 仍推进,可能跳过一段未读字节(EMFILE / stat 后被就地轮转等罕见竞态)。
 
 > 说明:加固使若干行为偏离了 Task 3–9 的原始逐字代码——最显著的是 LogWatcher 的 flush 时机由"空闲 1 轮"改为"空闲 2 轮",既有 3 个 LogWatcher 测试的轮询次数已相应更新。Classifier 的 `noisePatterns` 中"有效但过宽"的正则(如 `.`)仍是用户自负其责,不做拦截。
+
+---
+
+## UI 层实现说明(2026-07-03,Task 10–16 实现后)
+
+UI 层在 **Swift 6 语言模式(swift-tools 6.0,严格并发)** 下实现,较计划原始代码有几处必要偏差,功能等价、更符合并发安全:
+
+- **定时器接线**:不用 `AppDelegate` + `Timer`(计划 Task 15 Step 4 的两方案之一),改由可执行目标内的 `Monitor`(`@MainActor`)持有 `LogWatcher`,用一个 `Task` 轮询循环每秒 `poll()`;`onRecord` 回调用 `MainActor.assumeIsolated` 同步回主线程喂给 `AppModel.handle`(`LogRecord` 为 `Sendable`)。`SentinelApp.init` 创建并 `start()` 该 Monitor。
+- **AppModel 依赖**:`import Combine`(而非 `SwiftUI`)提供 `ObservableObject`/`@Published`,避免 `SwiftUI.Settings` 与 `SentinelCore.Settings` 同名冲突。
+- **名称消歧**:`SentinelApp` 的设置场景写作 `SwiftUI.Settings { … }`;`SettingsView` 的 keypath 辅助用 `WritableKeyPath<SentinelCore.Settings, …>`。
+- **移除脚手架**:删除 Task 0 的 `Placeholder.swift` 与 `SmokeTests`——其 `enum SentinelCore` 遮蔽了模块名 `SentinelCore`,导致 `SentinelCore.Settings` 无法限定;删除后模块名不再被遮蔽。`main_placeholder.swift` 由 `SentinelApp`(`@main`)接管后删除。
+- **验收口径**:Task 10–16 以 `swift build` 通过 + `AppModel` 单测(5 个)+ 全量 49 测试为准;toast/声音/菜单栏的**手动冒烟验证归入 Task 17**(打包为 `.app` 后,用 `logDirOverride` 指向临时目录、`feed-log.sh` 灌测试日志),不在本批次。
+
+**当前状态**:SentinelCore + AppLogic 逻辑层完成并加固,UI 层完成并可编译。仅剩 **Task 17(打包 `.app` + 端到端手动验证)**。
