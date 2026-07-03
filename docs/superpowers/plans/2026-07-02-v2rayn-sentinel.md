@@ -65,10 +65,16 @@ public enum SentinelCore {
 }
 ```
 
-`Sources/V2rayNSentinel/main_placeholder.swift`:
+`Sources/V2rayNSentinel/main_placeholder.swift`（可执行 target 的顶层代码只允许在 `main.swift`,故用 `@main`）:
 ```swift
 import SentinelCore
-print("V2rayN Sentinel \(SentinelCore.version)")
+
+@main
+struct Placeholder {
+    static func main() {
+        print("V2rayN Sentinel \(SentinelCore.version)")
+    }
+}
 ```
 
 `Tests/SentinelCoreTests/SmokeTests.swift`:
