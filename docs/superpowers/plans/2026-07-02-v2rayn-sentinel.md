@@ -2113,3 +2113,30 @@ git commit -m "build: add app bundling script, Info.plist, and log feeder for E2
 **3. 类型一致性**:`LogRecord`/`LogLevel`/`Classification`/`HistoryEntry`/`Settings`/`ClassifierRules` 字段与方法签名在各任务间一致;`Classifier.classify`、`Deduper.shouldAlert(_:now:)`、`ErrorHistory.record`、`AppModel.handle(_:now:)`、`Alerting.present/playSound`、`ToastManager.show`、`LogWatcher.poll/onRecord` 各处调用与定义匹配。`ClassifierRules.defaults.importantKeywords`(Task 5)被 `Settings.default`(Task 7)引用,已一致。
 
 **已知取舍**:Task 15 的 SwiftUI 生命周期定时器接线在不同 macOS 小版本上可能需在 AppDelegate 与 App.init 间二选一,计划已显式给出兜底路径;`LoginItemManager` 仅在打包 `.app` 内生效,已在 Task 11/16/17 标注。
+
+---
+
+## 健壮性加固记录(2026-07-03,Task 3–9 实现后)
+
+对 Task 3–9 的 SentinelCore 逻辑做了一轮对抗式健壮性审查(多子代理并行、实测复现),对确认的缺陷逐条补"先复现的失败测试 + 修复"。全部走 TDD,加固后全量 45 个测试通过。
+
+**已修复(#1–8):**
+
+| # | 位置 | 缺陷 | 修复 | 新增测试 |
+|---|---|---|---|---|
+| 1 | ErrorHistory | 负 `limit` → 首条 `record` 的 `removeLast` 越界 `fatalError` 崩溃 | init 里 `limit = max(0, limit)` | `testNegativeLimitDoesNotCrash` |
+| 2 | Classifier | 空/纯空白噪音规则匹配所有行 → 所有重要错误被静默降级 | `matches()` 忽略空/空白规则 | `testEmptyOrWhitespaceNoisePatternDoesNotSuppressImportant` |
+| 3 | Classifier | 非法正则的重要关键词在 ICU 下静默返回 nil → 升级失效 | 无效正则退回字面量匹配 | `testInvalidImportantKeywordRegexFallsBackToLiteralMatch` |
+| 4 | LogWatcher | 换文件/跨天前未 flush → 丢上个文件最后一条记录 | 换文件前先 `parser.flush()` | `testRolloverFlushesLastPendingRecordOfPreviousFile` |
+| 5 | LogWatcher | 空闲一轮即 flush → 多行续行下一轮到达被丢弃 | 连续 2 轮空闲才 flush(宽限窗口) | `testContinuationArrivingOnePollLaterStillMerges` |
+| 6 | Deduper | `lastSeen` 永不清理 → 长跑内存无界增长 | 每次 `shouldAlert` 清理过期签名(语义等价) | `testExpiredSignaturesArePruned` |
+| 7 | LogFileLocator | `\d` 匹配 Unicode 数字 → 全角/阿拉伯文件名污染 `.max()` | 正则收窄为 `[0-9]` | `testIgnoresNonAsciiDigitFilenames` |
+| 8 | SettingsStore | NaN/Infinity 的 Double 让 JSONEncoder 抛错、`try?` 吞掉 → 整次保存丢失 | `save` 前 `sanitized()` 把非有限值回退默认 | `testNonFiniteDoublesAreSanitizedOnSave` |
+
+**留后处理(#9–11,LOW,当前环境基本触发不到):**
+
+- **#9 Deduper**:NTP 时钟回拨时,抑制分支不刷新 `lastSeen`,可能过度抑制约 2× 冷却时长。
+- **#10 Settings**:`Equatable` 在 Double 为 NaN 时 `self != self`(#8 清洗后实际不会持久化 NaN,已大幅缓解)。
+- **#11 LogWatcher**:`FileHandle` 打开失败时 `offset = size` 仍推进,可能跳过一段未读字节(EMFILE / stat 后被就地轮转等罕见竞态)。
+
+> 说明:加固使若干行为偏离了 Task 3–9 的原始逐字代码——最显著的是 LogWatcher 的 flush 时机由"空闲 1 轮"改为"空闲 2 轮",既有 3 个 LogWatcher 测试的轮询次数已相应更新。Classifier 的 `noisePatterns` 中"有效但过宽"的正则(如 `.`)仍是用户自负其责,不做拦截。
