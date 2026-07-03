@@ -26,13 +26,25 @@ public struct Classifier {
         guard record.level.isError else { return .ignored }
         let text = record.raw
         for kw in rules.importantKeywords
-        where text.range(of: kw, options: [.regularExpression, .caseInsensitive]) != nil {
+        where Classifier.matches(text, pattern: kw, caseInsensitive: true) {
             return .important
         }
         for p in rules.noisePatterns
-        where text.range(of: p, options: .regularExpression) != nil {
+        where Classifier.matches(text, pattern: p, caseInsensitive: false) {
             return .ordinary
         }
         return .important
+    }
+
+    /// 稳健匹配用户可编辑的规则:
+    /// - 空/纯空白规则被忽略(不匹配任何行),避免把所有错误静默降级(加固 #2)。
+    /// - 无效正则退回字面量匹配,避免 ICU 对错误正则静默返回 nil 而吞掉规则(加固 #3)。
+    static func matches(_ text: String, pattern rawPattern: String, caseInsensitive: Bool) -> Bool {
+        let pattern = rawPattern.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !pattern.isEmpty else { return false }
+        let isValidRegex = (try? NSRegularExpression(pattern: pattern)) != nil
+        var options: String.CompareOptions = isValidRegex ? [.regularExpression] : []
+        if caseInsensitive { options.insert(.caseInsensitive) }
+        return text.range(of: pattern, options: options) != nil
     }
 }
