@@ -6,13 +6,12 @@ let package = Package(
     platforms: [.macOS(.v14)],
     targets: [
         .target(name: "SentinelCore"),
+        .target(name: "AppLogic", dependencies: ["SentinelCore"]),
         .executableTarget(
             name: "V2rayNSentinel",
-            dependencies: ["SentinelCore"]
+            dependencies: ["SentinelCore", "AppLogic"]
         ),
-        .testTarget(
-            name: "SentinelCoreTests",
-            dependencies: ["SentinelCore"]
-        ),
+        .testTarget(name: "SentinelCoreTests", dependencies: ["SentinelCore"]),
+        .testTarget(name: "AppLogicTests", dependencies: ["AppLogic"]),
     ]
 )
