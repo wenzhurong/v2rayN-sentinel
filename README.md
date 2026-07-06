@@ -20,3 +20,7 @@
 ## 平台
 
 macOS(Apple Silicon),需已安装并运行 v2rayN(macOS 版)。
+
+## 许可
+
+本项目采用 [GNU General Public License v3.0](LICENSE) 许可证。
