@@ -95,4 +95,18 @@ final class LogWatcherTests: XCTestCase {
         XCTAssertEqual(got.first?.level, .error)
         XCTAssertEqual(got.first?.message, "boom\n  at Foo.bar(x)")
     }
+
+    // v2:用 sing-box 文件名模式 + 解析器监控 sbox_ 文件。
+    func testWatchesSboxFileWithSingboxMatcher() throws {
+        try write("sbox_2026-07-13.txt",
+            "+0530 2026-07-13 09:00:00 ERROR [1 5.0s] dial tcp 1.2.3.4:80: i/o timeout\n")
+        var got: [LogRecord] = []
+        let w = LogWatcher(directory: dir, startAtEnd: false,
+                           filePattern: #"sbox_[0-9]{4}-[0-9]{2}-[0-9]{2}\.txt"#,
+                           headerMatcher: SingboxHeaderMatcher())
+        w.onRecord = { got.append($0) }
+        w.poll(); w.poll(); w.poll()   // 读到 -> 空闲2轮 flush
+        XCTAssertEqual(got.map(\.level), [.error])
+        XCTAssertEqual(got.first?.message, "[1 5.0s] dial tcp 1.2.3.4:80: i/o timeout")
+    }
 }

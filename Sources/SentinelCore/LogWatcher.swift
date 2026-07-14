@@ -6,10 +6,12 @@ public final class LogWatcher {
     private let directory: URL
     private let startAtEnd: Bool
     private let fileManager: FileManager
+    private let filePattern: String
+    private let headerMatcher: any HeaderMatcher
 
     private var currentFile: String?
     private var offset: UInt64 = 0
-    private var parser = LogParser()
+    private var parser: LogParser
     private var buffer = Data()   // 跨轮的残行
     private var idlePolls = 0     // 连续无活动的轮询数
 
@@ -17,16 +19,21 @@ public final class LogWatcher {
     private static let idleFlushThreshold = 2
 
     public init(directory: URL, startAtEnd: Bool = true,
-                fileManager: FileManager = .default) {
+                fileManager: FileManager = .default,
+                filePattern: String = #"[0-9]{4}-[0-9]{2}-[0-9]{2}\.txt"#,
+                headerMatcher: any HeaderMatcher = SerilogHeaderMatcher()) {
         self.directory = directory
         self.startAtEnd = startAtEnd
         self.fileManager = fileManager
+        self.filePattern = filePattern
+        self.headerMatcher = headerMatcher
+        self.parser = LogParser(matcher: headerMatcher)
     }
 
     /// 一次轮询周期。定时器每秒调用一次。
     public func poll() {
         guard let names = try? fileManager.contentsOfDirectory(atPath: directory.path),
-              let newest = LogFileLocator.newestDateFile(in: names) else { return }
+              let newest = LogFileLocator.newestMatchingFile(in: names, pattern: filePattern) else { return }
         let fileURL = directory.appendingPathComponent(newest)
         let attrs = (try? fileManager.attributesOfItem(atPath: fileURL.path)) ?? [:]
         let size = (attrs[.size] as? NSNumber)?.uint64Value ?? 0
@@ -39,7 +46,7 @@ public final class LogWatcher {
             // 换文件(首轮或跨天)前,先把上个文件的挂起记录输出,避免丢末条(加固 #4)。
             if let record = parser.flush() { onRecord?(record) }
             currentFile = plan.filename
-            parser = LogParser()
+            parser = LogParser(matcher: headerMatcher)
             buffer.removeAll()
             idlePolls = 0
         }

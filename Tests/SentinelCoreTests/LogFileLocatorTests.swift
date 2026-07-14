@@ -21,4 +21,12 @@ final class LogFileLocatorTests: XCTestCase {
         let names = ["2026-07-02.txt", fullwidth]
         XCTAssertEqual(LogFileLocator.newestDateFile(in: names), "2026-07-02.txt")
     }
+
+    // v2:按任意文件名模式选最新(内核日志带前缀)。
+    func testNewestMatchingFilePicksPrefixed() {
+        let names = ["sbox_2026-07-12.txt", "sbox_2026-07-13.txt", "2026-07-13.txt", "Vaccess_2026-07-13.txt"]
+        XCTAssertEqual(
+            LogFileLocator.newestMatchingFile(in: names, pattern: #"sbox_[0-9]{4}-[0-9]{2}-[0-9]{2}\.txt"#),
+            "sbox_2026-07-13.txt")
+    }
 }
