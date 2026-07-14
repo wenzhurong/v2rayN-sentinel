@@ -9,32 +9,21 @@ public final class LogParser {
         var extra: [String]
     }
 
+    private let matcher: any HeaderMatcher
     private var pending: Pending?
 
-    public init() {}
+    public init(matcher: any HeaderMatcher = SerilogHeaderMatcher()) {
+        self.matcher = matcher
+    }
 
-    private static let headerRegex = try! NSRegularExpression(
-        pattern: #"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d+)-([A-Za-z]+) ?(.*)$"#
-    )
-
-    /// 若该行是记录行头,返回 (时间戳, 级别, 正文);否则返回 nil(续行)。
+    /// 向后兼容:v1 用的静态解析,固定 Serilog 格式。
     public static func parseHeader(_ line: String) -> (String, LogLevel, String)? {
-        let range = NSRange(line.startIndex..<line.endIndex, in: line)
-        guard let m = headerRegex.firstMatch(in: line, options: [], range: range) else {
-            return nil
-        }
-        func group(_ i: Int) -> String {
-            guard let r = Range(m.range(at: i), in: line) else { return "" }
-            return String(line[r])
-        }
-        let ts = group(1)
-        let level = LogLevel(rawValue: group(2).uppercased()) ?? .unknown
-        return (ts, level, group(3))
+        SerilogHeaderMatcher().match(line)
     }
 
     /// 喂入一行(不含结尾换行)。若此行开启新记录,返回上一条已完成的记录。
     public func consume(_ line: String) -> LogRecord? {
-        if let (ts, level, msg) = LogParser.parseHeader(line) {
+        if let (ts, level, msg) = matcher.match(line) {
             let completed = flush()
             pending = Pending(timestamp: ts, level: level,
                               firstMessage: msg, firstRaw: line, extra: [])
