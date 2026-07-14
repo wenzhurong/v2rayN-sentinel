@@ -32,6 +32,15 @@ public final class SettingsStore {
         if !out.dedupeCooldownSeconds.isFinite {
             out.dedupeCooldownSeconds = Settings.default.dedupeCooldownSeconds
         }
+        if !out.burstWindowSeconds.isFinite {
+            out.burstWindowSeconds = Settings.default.burstWindowSeconds
+        }
+        if !out.escalationCooldownSeconds.isFinite {
+            out.escalationCooldownSeconds = Settings.default.escalationCooldownSeconds
+        }
+        if !out.aggregatedToastIdleSeconds.isFinite {
+            out.aggregatedToastIdleSeconds = Settings.default.aggregatedToastIdleSeconds
+        }
         return out
     }
 }
