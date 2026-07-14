@@ -28,4 +28,9 @@ final class ToastAlerter: Alerting {
     func playSound(named name: String) {
         sound.play(named: name)
     }
+
+    func presentAggregated(key: String, title: String, count: Int, autoDismiss: TimeInterval?) {
+        toasts.showOrUpdateAggregated(key: key, title: title, count: count,
+                                      autoDismiss: autoDismiss, screen: resolveScreen())
+    }
 }

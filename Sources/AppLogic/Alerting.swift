@@ -6,4 +6,6 @@ import SentinelCore
 public protocol Alerting: AnyObject {
     func present(entry: HistoryEntry, important: Bool, autoDismiss: TimeInterval?)
     func playSound(named name: String)
+    /// 键控聚合 toast:同 key 更新计数,否则新建。
+    func presentAggregated(key: String, title: String, count: Int, autoDismiss: TimeInterval?)
 }
