@@ -39,6 +39,18 @@ struct SettingsView: View {
                 TextEditor(text: linesBinding(\.importantKeywords))
                     .frame(minHeight: 40).font(.system(.caption, design: .monospaced))
             }
+            Section("内核监控(sing-box / xray)") {
+                Toggle("启用内核日志监控", isOn: bind(\.coreMonitoringEnabled))
+                Toggle("也报 Warning 级别", isOn: bind(\.coreAlertIncludesWarning))
+                Stepper("突发窗口 \(Int(model.settings.burstWindowSeconds)) 秒",
+                        value: bind(\.burstWindowSeconds), in: 5...300, step: 5)
+                Stepper("突发升级阈值 \(model.settings.burstThreshold) 次",
+                        value: bind(\.burstThreshold), in: 2...500)
+                Stepper("升级冷却 \(Int(model.settings.escalationCooldownSeconds)) 秒",
+                        value: bind(\.escalationCooldownSeconds), in: 30...3600, step: 30)
+                Stepper("聚合 toast 空闲 \(Int(model.settings.aggregatedToastIdleSeconds)) 秒消失",
+                        value: bind(\.aggregatedToastIdleSeconds), in: 3...60)
+            }
         }
         .padding(20)
         .frame(width: 420)
