@@ -9,6 +9,10 @@ struct MenuContent: View {
         Button(model.monitoring ? "监控中(点击暂停)" : "已暂停(点击开启)") {
             model.toggleMonitoring()
         }
+        if model.settings.coreMonitoringEnabled && !model.coreLoggingDetected {
+            Text("内核日志未开启(在 v2rayN 里开启核心日志)")
+                .foregroundStyle(.orange)
+        }
         Divider()
         if model.history.isEmpty {
             Text("暂无错误").foregroundStyle(.secondary)

@@ -7,6 +7,12 @@ public final class AppModel: ObservableObject {
     @Published public var settings: Settings
     @Published public private(set) var history: [HistoryEntry] = []
     @Published public private(set) var monitoring: Bool
+    /// 是否发现内核日志文件(sbox_/Verror_)。由 Monitor 每轮探测后上报,供菜单提示。
+    @Published public private(set) var coreLoggingDetected: Bool = false
+
+    public func setCoreLoggingDetected(_ value: Bool) {
+        if coreLoggingDetected != value { coreLoggingDetected = value }
+    }
 
     private let alerter: Alerting
     private var classifier: Classifier
